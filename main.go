@@ -13,7 +13,6 @@ import (
   "html/template"
   "io/ioutil"
   "regexp"
-  "errors"
 )
 
 type Tree struct {
