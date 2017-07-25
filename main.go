@@ -11,6 +11,7 @@ import (
   "net/http"
   "time"
   "html/template"
+  "io/ioutil"
 )
 
 type Tree struct {
@@ -18,19 +19,78 @@ type Tree struct {
   Description string
 }
 
+type Page struct {
+    Title string
+    Body  []byte
+}
+
+func (p *Page) save() error {
+    filename := "store/" + p.Title + ".txt"
+    return ioutil.WriteFile(filename, p.Body, 0600)
+}
+
 func main() {
   http.HandleFunc("/", handle)
   http.HandleFunc("/_ah/health", healthCheckHandler)
 
   http.HandleFunc("/cities", citiesHandler)
-  
   http.HandleFunc("/colors", func(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "path: %s\n", r.URL.Path)
   })
-
   http.HandleFunc("/trees", treesHandler)
+  http.HandleFunc("/test", testHandler)
+  http.HandleFunc("/view/", viewHandler)
+  http.HandleFunc("/edit/", editHandler)
+  http.HandleFunc("/save/", saveHandler)
+  
   log.Print("Listening on port 8080")
   log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+    title := r.URL.Path[len("/view/"):]
+    p, err := loadPage(title)
+    log.Print("---> p: ", p)
+    log.Print("---> err: ", err)
+
+    if err != nil {
+        http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+        return
+    }
+
+    renderTemplate(w, "view", p)
+}
+
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+    title := r.URL.Path[len("/save/"):]
+    body := r.FormValue("body")
+    p := &Page{Title: title, Body: []byte(body)}
+    p.save()
+    http.Redirect(w, r, "/view/"+title, http.StatusFound)
+}
+
+func editHandler(w http.ResponseWriter, r *http.Request) {
+    title := r.URL.Path[len("/edit/"):]
+    p, err := loadPage(title)
+    if err != nil {
+        p = &Page{Title: title}
+    }
+
+    renderTemplate(w, "edit", p)
+}
+
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+    t, _ := template.ParseFiles("templates/" + tmpl + ".html")
+    t.Execute(w, p)
+}
+
+func loadPage(title string) (*Page, error) {
+    filename := "store/" + title + ".txt"
+    body, err := ioutil.ReadFile(filename)
+    if err != nil {
+        return nil, err
+    }
+    return &Page{Title: title, Body: body}, nil
 }
 
 func handle(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +103,13 @@ func handle(w http.ResponseWriter, r *http.Request) {
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
   fmt.Fprint(w, "ok")
+}
+
+func testHandler(w http.ResponseWriter, r *http.Request) {
+    p1 := &Page{Title: "test", Body: []byte("test test test")}
+    p1.save()
+    p2, _ := loadPage("test")
+    fmt.Println(string(p2.Body))
 }
 
 func citiesHandler(w http.ResponseWriter, r *http.Request) {
