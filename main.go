@@ -50,8 +50,7 @@ func main() {
 func viewHandler(w http.ResponseWriter, r *http.Request) {
     title := r.URL.Path[len("/view/"):]
     p, err := loadPage(title)
-    log.Print("---> p: ", p)
-    log.Print("---> err: ", err)
+    // log.Print("---> p: ", p)
 
     if err != nil {
         http.Redirect(w, r, "/edit/"+title, http.StatusFound)
@@ -65,7 +64,11 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
     title := r.URL.Path[len("/save/"):]
     body := r.FormValue("body")
     p := &Page{Title: title, Body: []byte(body)}
-    p.save()
+    err := p.save()
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
     http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
@@ -80,8 +83,15 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-    t, _ := template.ParseFiles("templates/" + tmpl + ".html")
-    t.Execute(w, p)
+    t, err := template.ParseFiles("templates/" + tmpl + ".html")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    err = t.Execute(w, p)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
 }
 
 func loadPage(title string) (*Page, error) {
