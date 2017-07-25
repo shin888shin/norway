@@ -12,6 +12,8 @@ import (
   "time"
   "html/template"
   "io/ioutil"
+  "regexp"
+  "errors"
 )
 
 type Tree struct {
@@ -23,6 +25,9 @@ type Page struct {
     Title string
     Body  []byte
 }
+
+var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html"))
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func (p *Page) save() error {
     filename := "store/" + p.Title + ".txt"
@@ -47,8 +52,22 @@ func main() {
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+    log.Print("---> url: ", r.URL)
+    m := validPath.FindStringSubmatch(r.URL.Path)
+    log.Print("---> valid url: ", m)
+    if m == nil {
+        http.NotFound(w, r)
+        return "", errors.New("Invalid Page Title")
+    }
+    return m[2], nil // The title is the second subexpression.
+}
+
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-    title := r.URL.Path[len("/view/"):]
+    title, err := getTitle(w, r)
+    if err != nil {
+        return
+    }
     p, err := loadPage(title)
     // log.Print("---> p: ", p)
 
@@ -61,11 +80,16 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
-    title := r.URL.Path[len("/save/"):]
+    // title := r.URL.Path[len("/save/"):]
+    title, err := getTitle(w, r)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
     body := r.FormValue("body")
     p := &Page{Title: title, Body: []byte(body)}
-    err := p.save()
-    if err != nil {
+    err2 := p.save()
+    if err2 != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
@@ -73,7 +97,10 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
-    title := r.URL.Path[len("/edit/"):]
+    title, err := getTitle(w, r)
+    if err != nil {
+        return
+    }
     p, err := loadPage(title)
     if err != nil {
         p = &Page{Title: title}
@@ -83,14 +110,11 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-    t, err := template.ParseFiles("templates/" + tmpl + ".html")
+    err := templates.ExecuteTemplate(w, tmpl + ".html", p)
+    // t, err := template.ParseFiles("templates/" + tmpl + ".html")
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
-    }
-    err = t.Execute(w, p)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
     }
 }
 
