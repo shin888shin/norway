@@ -53,17 +53,6 @@ func main() {
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-    log.Print("---> url: ", r.URL)
-    m := validPath.FindStringSubmatch(r.URL.Path)
-    log.Print("---> valid url: ", m)
-    if m == nil {
-        http.NotFound(w, r)
-        return "", errors.New("Invalid Page Title")
-    }
-    return m[2], nil // The title is the second subexpression.
-}
-
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         m := validPath.FindStringSubmatch(r.URL.Path)
