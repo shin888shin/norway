@@ -1,8 +1,8 @@
-<html><body>
+{{ define "content" }}
 
-<h3>Trees</h3>
-{{range .Trees}}
-  <p>{{.Name}}: {{.Description}}</p>
-{{end}}
+  <h3>Trees</h3>
+  {{range .Trees}}
+    <p>{{.Name}}: {{.Description}}</p>
+  {{end}}
 
-</body></html>
+{{ end }}

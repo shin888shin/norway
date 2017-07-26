@@ -1,0 +1,21 @@
+{{ define "layout" }}
+<!DOCTYPE HTML>
+<html><body>
+
+  <div id="nav-area">
+    <a href="/">Home</a>
+    <a href="/cities">Cities</a>
+    <a href="/colors">Colors</a>
+    <a href="/trees">Trees</a>
+  </div>
+
+
+{{ template "content" .}}
+
+
+<div>
+  footer
+</div>
+
+</body></html>
+{{ end }}

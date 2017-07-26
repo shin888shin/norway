@@ -25,7 +25,7 @@ type Page struct {
     Body  []byte
 }
 
-var templates = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html"))
+var t *template.Template
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func (p *Page) save() error {
@@ -33,13 +33,23 @@ func (p *Page) save() error {
     return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
+// var templates = template.Must(template.ParseFiles("templates/footer.html", "templates/view.html"))
+// func init() {
+//   templates = template.Must(template.ParseFiles("templates/view.html", "templates/footer.html"))
+// }
+
 func main() {
-  http.HandleFunc("/", handle)
+  http.HandleFunc("/", handleRoot)
   http.HandleFunc("/_ah/health", healthCheckHandler)
 
   http.HandleFunc("/cities", citiesHandler)
   http.HandleFunc("/colors", func(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "path: %s\n", r.URL.Path)
+    t, _ = template.ParseFiles("templates/colors.html", "templates/layout.html")
+    err := t.ExecuteTemplate(w, "layout", nil)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
   })
   http.HandleFunc("/trees", treesHandler)
   http.HandleFunc("/test", testHandler)
@@ -92,7 +102,15 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-    err := templates.ExecuteTemplate(w, tmpl + ".html", p)
+    // err := templates.ExecuteTemplate(w, tmpl + ".html", p)
+    // templates, _ = template.ParseFiles("view.html")
+    // if tmpl == "edit" {
+    //   t, _ = template.ParseFiles("templates/edit.html", "templates/layout.html")
+    // } else {
+    //   t, _ = template.ParseFiles("templates/view.html", "templates/layout.html")
+    // }
+    t, _ = template.ParseFiles("templates/" + tmpl + ".html", "templates/layout.html")
+    err := t.ExecuteTemplate(w, "layout", p)
     // t, err := template.ParseFiles("templates/" + tmpl + ".html")
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -109,12 +127,17 @@ func loadPage(title string) (*Page, error) {
     return &Page{Title: title, Body: body}, nil
 }
 
-func handle(w http.ResponseWriter, r *http.Request) {
-  if r.URL.Path != "/" {
-    http.NotFound(w, r)
-    return
-  }
-  fmt.Fprint(w, "Norway")
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+    if r.URL.Path != "/" {
+      http.NotFound(w, r)
+      return
+    }
+    t, _ = template.ParseFiles("templates/home.html", "templates/layout.html")
+    err := t.ExecuteTemplate(w, "layout", nil)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -129,28 +152,26 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func citiesHandler(w http.ResponseWriter, r *http.Request) {
-    // fmt.Fprint(w, "Rome, New York, Mexico City, Tokyo")
-    tmpl.Execute(w, time.Since(initTime))
+    var initTime = time.Now()
+    t, _ = template.ParseFiles("templates/cities.html", "templates/layout.html")
+    err := t.ExecuteTemplate(w, "layout", initTime)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
 }
 
 func treesHandler(w http.ResponseWriter, r *http.Request) {
-  trees := []Tree{
-    {"Oak", "Quercus robur"},
-    {"Maple", "Acer pseudoplatanus"},
-  }
-  tmpl := template.Must(template.ParseFiles("templates/trees.html"))
-  tmpl.Execute(w, struct{ Trees []Tree }{trees})
+    trees := []Tree{
+      {"Oak", "Quercus robur"},
+      {"Maple", "Acer pseudoplatanus"},
+    }
+
+
+    t, _ = template.ParseFiles("templates/trees.html", "templates/layout.html")
+    err := t.ExecuteTemplate(w, "layout", struct{ Trees []Tree }{trees})
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
 }
-
-
-var initTime = time.Now()
-var tmpl = template.Must(template.New("front").Parse(`
-<html><body>
-<p>
-Oakland, Moscow, Rome, Florence, New York, Mexico City, Tokyo! 세상아 안녕!
-</p>
-<p>
-This instance has been running for <em>{{.}}</em>.
-</p>
-</body></html>
-`))

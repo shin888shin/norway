@@ -1,5 +1,4 @@
-<html><body>
-
+{{ define "content" }}
 <h3>Editing {{.Title}}</h3>
 
 <form action="/save/{{.Title}}" method="POST">
@@ -8,3 +7,4 @@
 </form>
 
 </body></html>
+{{ end }}
