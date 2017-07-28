@@ -13,6 +13,9 @@ import (
   "html/template"
   "io/ioutil"
   "regexp"
+  "github.com/GoogleCloudPlatform/cloudsql-proxy/proxy/dialers/mysql"
+  "github.com/shin888shin/norway/mydb"
+
 )
 
 type Tree struct {
@@ -25,6 +28,7 @@ type Page struct {
     Body  []byte
 }
 
+var dbConfig mydb.Database
 var t *template.Template
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
@@ -38,7 +42,44 @@ func (p *Page) save() error {
 //   templates = template.Must(template.ParseFiles("templates/view.html", "templates/footer.html"))
 // }
 
+// func readInputFileThree(i int) {
+//   fmt.Println("")
+//   fmt.Printf("+++> %v <+++\n", i)
+
+//   fileName := "./inputs/obm_values.txt"
+//   contentBytes, err := ioutil.ReadFile(fileName)
+//   checkError(err)
+
+//   result := string(contentBytes)
+//   lines := strings.Split(result, "\n")
+//   unitTest := Option{}
+
+//   for i, line := range lines {
+//     // fmt.Printf("%d. line: %s %T\n", i, line, line)
+//     if i == 0 {
+//       unitTest.Mock = strings.TrimSpace(line)
+//     } else if i == 1 {
+//       unitTest.Key = strings.TrimSpace(line) 
+//     }
+//   }
+
+//   fmt.Printf("unitTest: %s\n", unitTest)
+//   fmt.Printf("  Mock: %s\n", unitTest.Mock)
+//   fmt.Printf("  Key : %s\n", unitTest.Key)
+//   fmt.Println("")
+// }
+
+
+func init() {
+  var err error
+  dbConfig, err = mydb.DatabaseSetup()
+  if err != nil {
+    panic(err)
+  }
+}
+
 func main() {
+
   http.HandleFunc("/", handleRoot)
   http.HandleFunc("/_ah/health", healthCheckHandler)
 
@@ -59,6 +100,30 @@ func main() {
   http.HandleFunc("/save/", makeHandler(saveHandler))
   
   log.Print("Listening on port 8080")
+
+  db, err := mysql.DialPassword(dbConfig.Host, dbConfig.User, dbConfig.Password)
+  if err != nil {
+    log.Print("oh no")
+    return
+  }
+
+  rows, err := db.Query("show databases")
+  if err != nil {
+      log.Fatal(err)
+  }
+  defer rows.Close()
+
+  for rows.Next() {
+      var name string
+      if err := rows.Scan(&name); err != nil {
+          log.Fatal(err)
+      }
+      fmt.Printf("%s\n", name)
+  }
+  if err := rows.Err(); err != nil {
+      log.Fatal(err)
+  }
+
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
