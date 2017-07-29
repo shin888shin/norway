@@ -9,6 +9,6 @@ runtime: go
 # Cloud SQL v1 instances are not supported.
 #
 # This should match the value in config.go
-beta_settings:
-  cloud_sql_instances: norway-174805:us-central1:norway-sql
+# beta_settings:
+#   cloud_sql_instances: xxx:xxx:xxx
 # [END cloudsql_settings]
